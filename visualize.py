@@ -3,7 +3,7 @@ import pygame
 import sys
 import numpy as np
 
-from constants import PROTON_MASS, PROTON_CHARGE
+from constants import PROTON_MASS, PROTON_CHARGE, C
 from particle import Particle
 from physics import derivatives_particle
 from integrators import rk4_step_particle
@@ -11,15 +11,17 @@ from integrators import rk4_step_particle
 # -----------------------------
 # Window Settings
 # -----------------------------
-WIDTH, HEIGHT = 1000, 800
+WIDTH, HEIGHT = 1100, 850
 FPS = 60
 
 BACKGROUND = (10, 10, 18)
 RING_COLOR = (100, 120, 180)
-TRAIL_COLOR = (180, 180, 180)
+TRAIL_COLOR = (170, 170, 170)
 PARTICLE_COLOR = (255, 120, 120)
 LOST_COLOR = (255, 50, 50)
 TEXT_COLOR = (230, 230, 230)
+
+GAP_COLOR = (100, 255, 180)
 
 # -----------------------------
 # Physics / Ring Parameters
@@ -37,16 +39,26 @@ DT = 1e-9
 STEPS_PER_FRAME = 300
 
 # -----------------------------
-# Beam Parameters (UPDATED)
+# Beam Parameters
 # -----------------------------
-NUM_PARTICLES = 50
+NUM_PARTICLES = 40
+SIGMA_POS = 0.02   # meters
+SIGMA_VEL = 2e4    # m/s  (reduced to stabilize)
 
-# Smaller spread = more stable beam
-SIGMA_POS = 0.002   # meters (was 0.02)
-SIGMA_VEL = 1e3     # m/s     (was 1e5)
+# -----------------------------
+# Phase 3: RF Gap Settings
+# -----------------------------
+ENABLE_RF_GAP = True
+GAP_HALFWIDTH = 0.10
+E0 = 2e5           # Electric field strength
+USE_RF = False     # keep false first (stable)
+OMEGA = 0.0        # RF frequency (only used if USE_RF=True)
 
-# Trail length limit (prevents lag)
-MAX_TRAIL = 200
+RELATIVISTIC = False
+
+# Loss condition (relaxed)
+LOSS_LOW = 0.75
+LOSS_HIGH = 1.25
 
 
 # -----------------------------
@@ -55,25 +67,21 @@ MAX_TRAIL = 200
 def create_beam():
     beam = []
 
-    # Correct speed for circular orbit:
-    # r = (m*v)/(q*B)  =>  v = (r*q*B)/m
-    v0 = (RING_RADIUS_M * PROTON_CHARGE * Bz) / PROTON_MASS
+    # IMPORTANT FIX:
+    # The formula v = qBr/m gives absurd values for protons at R=5m, B=1T.
+    # We clamp to a safe non-relativistic orbit speed.
+    v0 = 0.05 * C   # 5% of speed of light (stable for Phase 3)
 
     for _ in range(NUM_PARTICLES):
-        # Start close to ring radius
         x = RING_RADIUS_M + np.random.normal(0, SIGMA_POS)
         y = np.random.normal(0, SIGMA_POS)
 
-        # Velocity near perfect circular orbit
+        # Tangential velocity: at +x, tangential direction is +y
         vx = np.random.normal(0, SIGMA_VEL)
         vy = v0 + np.random.normal(0, SIGMA_VEL)
 
         p = Particle(x, y, vx, vy, PROTON_CHARGE, PROTON_MASS)
-
-        # Start trail
-        p.trail = []
         p.add_trail_point()
-
         beam.append(p)
 
     return beam
@@ -96,7 +104,7 @@ def main():
 
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("2D Ring Accelerator Simulator (Beam + RK4)")
+    pygame.display.set_caption("Ring Accelerator Simulator (Phase 3: RF Gap Acceleration)")
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("consolas", 18)
 
@@ -105,9 +113,12 @@ def main():
     beam = create_beam()
     paused = False
 
+    t = 0.0
+
     def reset_sim():
-        nonlocal beam
+        nonlocal beam, t
         beam = create_beam()
+        t = 0.0
 
     while True:
         clock.tick(FPS)
@@ -129,10 +140,10 @@ def main():
                     reset_sim()
 
                 if event.key == pygame.K_UP:
-                    STEPS_PER_FRAME = min(8000, STEPS_PER_FRAME + 100)
+                    STEPS_PER_FRAME = min(12000, STEPS_PER_FRAME + 200)
 
                 if event.key == pygame.K_DOWN:
-                    STEPS_PER_FRAME = max(1, STEPS_PER_FRAME - 100)
+                    STEPS_PER_FRAME = max(1, STEPS_PER_FRAME - 200)
 
                 if event.key in (pygame.K_PLUS, pygame.K_EQUALS):
                     SCALE *= 1.1
@@ -145,21 +156,35 @@ def main():
         # -----------------------------
         if not paused:
             for _ in range(STEPS_PER_FRAME):
+                t += DT
+
                 for p in beam:
                     if not p.alive:
                         continue
 
-                    rk4_step_particle(p, DT, derivatives_particle, Bz=Bz)
+                    rk4_step_particle(
+                        p,
+                        DT,
+                        derivatives_particle,
+                        Bz=Bz,
+                        relativistic=RELATIVISTIC,
 
-                    # Loss condition (UPDATED: wider band)
+                        # Phase 3
+                        ring_radius=RING_RADIUS_M,
+                        enable_rf_gap=ENABLE_RF_GAP,
+                        gap_halfwidth=GAP_HALFWIDTH,
+                        E0=E0,
+                        use_rf=USE_RF,
+                        omega=OMEGA,
+                        t=t
+                    )
+
+                    # Loss condition
                     r = np.sqrt(p.x * p.x + p.y * p.y)
-                    if r > RING_RADIUS_M * 1.30 or r < RING_RADIUS_M * 0.70:
+                    if r > RING_RADIUS_M * LOSS_HIGH or r < RING_RADIUS_M * LOSS_LOW:
                         p.alive = False
 
-                    # Trail limit
                     p.add_trail_point()
-                    if len(p.trail) > MAX_TRAIL:
-                        p.trail.pop(0)
 
         # -----------------------------
         # Render
@@ -175,15 +200,18 @@ def main():
             2
         )
 
+        # Draw gap region on +x side
+        gap_y = GAP_HALFWIDTH * SCALE
+        gap_x = int(cx + RING_RADIUS_M * SCALE)
+        pygame.draw.line(screen, GAP_COLOR, (gap_x, int(cy - gap_y)), (gap_x, int(cy + gap_y)), 4)
+
         # Draw particles + trails
         for p in beam:
 
-            # Trail
             if len(p.trail) > 2:
                 pts = [world_to_screen(x, y, SCALE, cx, cy) for (x, y) in p.trail]
                 pygame.draw.lines(screen, TRAIL_COLOR, False, pts, 2)
 
-            # Particle
             px, py = world_to_screen(p.x, p.y, SCALE, cx, cy)
             color = PARTICLE_COLOR if p.alive else LOST_COLOR
             pygame.draw.circle(screen, color, (px, py), 5)
@@ -194,10 +222,13 @@ def main():
         alive_count = sum(1 for p in beam if p.alive)
         speeds = [np.sqrt(p.vx * p.vx + p.vy * p.vy) for p in beam if p.alive]
         mean_speed = float(np.mean(speeds)) if speeds else 0.0
+        max_speed = float(np.max(speeds)) if speeds else 0.0
 
         info_lines = [
+            "PHASE 3: Electric Field Gap Acceleration",
             "SPACE=Pause | R=Reset | UP/DOWN=Speed | +/-=Zoom",
-            f"Bz={Bz:.2f} T | Alive={alive_count}/{NUM_PARTICLES} | Mean speed={mean_speed:.3e} m/s",
+            f"Bz={Bz:.2f} T | Gap={'ON' if ENABLE_RF_GAP else 'OFF'} | E0={E0:.2e} V/m",
+            f"Alive={alive_count}/{NUM_PARTICLES} | Mean v={mean_speed:.3e} | Max v={max_speed:.3e}",
             f"Steps/frame={STEPS_PER_FRAME} | DT={DT:.1e} s | Scale={SCALE:.1f} px/m",
         ]
 

@@ -7,7 +7,7 @@ def rk4_step_particle(particle, dt, derivs_func, **kwargs):
     """
     RK4 step for Particle object.
 
-    derivs_func(particle, **kwargs) -> [dx, dy, dvx, dvy]
+    derivs_func(particle, **kwargs) -> np.array([dx, dy, dvx, dvy])
     """
 
     # Current state vector
@@ -16,10 +16,10 @@ def rk4_step_particle(particle, dt, derivs_func, **kwargs):
     # Helper to build a temp particle
     def temp_particle_from_state(state_vec):
         return Particle(
-            x=state_vec[0],
-            y=state_vec[1],
-            vx=state_vec[2],
-            vy=state_vec[3],
+            x=float(state_vec[0]),
+            y=float(state_vec[1]),
+            vx=float(state_vec[2]),
+            vy=float(state_vec[3]),
             q=particle.q,
             m=particle.m,
             alive=particle.alive
@@ -36,11 +36,13 @@ def rk4_step_particle(particle, dt, derivs_func, **kwargs):
     p4 = temp_particle_from_state(s + dt * k3)
     k4 = derivs_func(p4, **kwargs)
 
-    s_new = s + (dt / 6.0) * (k1 + 2*k2 + 2*k3 + k4)
+    s_new = s + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
 
     # Write back
-    particle.x, particle.y, particle.vx, particle.vy = s_new
+    particle.x = float(s_new[0])
+    particle.y = float(s_new[1])
+    particle.vx = float(s_new[2])
+    particle.vy = float(s_new[3])
 
-    # Update energy and trail
+    # Update energy (DO NOT update trail here)
     particle.update_energy(relativistic=kwargs.get("relativistic", False))
-    particle.add_trail_point()
