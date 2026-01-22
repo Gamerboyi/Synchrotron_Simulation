@@ -1,48 +1,57 @@
 # integrators.py
 import numpy as np
-from particle import Particle
 
 
 def rk4_step_particle(particle, dt, derivs_func, **kwargs):
     """
-    RK4 step for Particle object.
+    RK4 integrator for Particle objects.
 
-    derivs_func(particle, **kwargs) -> np.array([dx, dy, dvx, dvy])
+    FIX: The RF kick depends on time `t`. Each RK4 sub-step should evaluate
+    at the correct intermediate time:
+        k1 at t
+        k2 at t + dt/2
+        k3 at t + dt/2
+        k4 at t + dt
+
+    We extract `t` from kwargs and pass corrected values per sub-step.
     """
 
-    # Current state vector
-    s = np.array([particle.x, particle.y, particle.vx, particle.vy], dtype=float)
+    y0 = np.array([particle.x, particle.y, particle.vx, particle.vy], dtype=float)
+    t0 = kwargs.get('t', 0.0)
 
-    # Helper to build a temp particle
-    def temp_particle_from_state(state_vec):
-        return Particle(
-            x=float(state_vec[0]),
-            y=float(state_vec[1]),
-            vx=float(state_vec[2]),
-            vy=float(state_vec[3]),
-            q=particle.q,
-            m=particle.m,
-            alive=particle.alive
-        )
-
+    # --- k1 at (y0, t) ---
+    kwargs['t'] = t0
     k1 = derivs_func(particle, **kwargs)
 
-    p2 = temp_particle_from_state(s + 0.5 * dt * k1)
-    k2 = derivs_func(p2, **kwargs)
+    # --- k2 at (y0 + 0.5*dt*k1, t + dt/2) ---
+    particle.x  = y0[0] + 0.5 * dt * k1[0]
+    particle.y  = y0[1] + 0.5 * dt * k1[1]
+    particle.vx = y0[2] + 0.5 * dt * k1[2]
+    particle.vy = y0[3] + 0.5 * dt * k1[3]
+    kwargs['t'] = t0 + 0.5 * dt
+    k2 = derivs_func(particle, **kwargs)
 
-    p3 = temp_particle_from_state(s + 0.5 * dt * k2)
-    k3 = derivs_func(p3, **kwargs)
+    # --- k3 at (y0 + 0.5*dt*k2, t + dt/2) ---
+    particle.x  = y0[0] + 0.5 * dt * k2[0]
+    particle.y  = y0[1] + 0.5 * dt * k2[1]
+    particle.vx = y0[2] + 0.5 * dt * k2[2]
+    particle.vy = y0[3] + 0.5 * dt * k2[3]
+    kwargs['t'] = t0 + 0.5 * dt
+    k3 = derivs_func(particle, **kwargs)
 
-    p4 = temp_particle_from_state(s + dt * k3)
-    k4 = derivs_func(p4, **kwargs)
+    # --- k4 at (y0 + dt*k3, t + dt) ---
+    particle.x  = y0[0] + dt * k3[0]
+    particle.y  = y0[1] + dt * k3[1]
+    particle.vx = y0[2] + dt * k3[2]
+    particle.vy = y0[3] + dt * k3[3]
+    kwargs['t'] = t0 + dt
+    k4 = derivs_func(particle, **kwargs)
 
-    s_new = s + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
+    # --- Final weighted sum ---
+    particle.x  = y0[0] + (dt / 6.0) * (k1[0] + 2*k2[0] + 2*k3[0] + k4[0])
+    particle.y  = y0[1] + (dt / 6.0) * (k1[1] + 2*k2[1] + 2*k3[1] + k4[1])
+    particle.vx = y0[2] + (dt / 6.0) * (k1[2] + 2*k2[2] + 2*k3[2] + k4[2])
+    particle.vy = y0[3] + (dt / 6.0) * (k1[3] + 2*k2[3] + 2*k3[3] + k4[3])
 
-    # Write back
-    particle.x = float(s_new[0])
-    particle.y = float(s_new[1])
-    particle.vx = float(s_new[2])
-    particle.vy = float(s_new[3])
-
-    # Update energy (DO NOT update trail here)
-    particle.update_energy(relativistic=kwargs.get("relativistic", False))
+    # Restore original t in kwargs so the caller's t is unchanged
+    kwargs['t'] = t0
