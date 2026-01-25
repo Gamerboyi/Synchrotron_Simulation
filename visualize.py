@@ -11,7 +11,7 @@ from integrators import rk4_step_particle
 # ============================================================
 # WINDOW / LAYOUT
 # ============================================================
-WIDTH, HEIGHT = 1920, 1080
+WIDTH, HEIGHT = 1280, 760
 FPS           = 60
 
 HUD_W   = 500
