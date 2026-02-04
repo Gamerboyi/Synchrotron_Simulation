@@ -2,3 +2,36 @@
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Test / build artifacts
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Generated data (should be regenerated, not stored)
+*.csv
+*.png
+
+# VS Code temp files
+tempCodeRunnerFile.py
+
+# Virtual env
+venv/
+.venv/
+env/
+
+# Environment variables
+.env
+.env.local
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
