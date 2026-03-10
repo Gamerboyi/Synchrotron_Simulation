@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steins;Gate Synchrotron — Ring Particle Accelerator Simulator</title>
+    <meta name="description" content="Real-time 3D particle accelerator simulation with Lorentz force physics, RK4 integration, RF acceleration, and relativistic dynamics. Built with Three.js. El Psy Kongroo.">
+    <link rel="stylesheet" href="css/style.css">
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!-- INTRO OVERLAY — explains what this is              -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div id="intro-overlay" class="intro-overlay">
+    <div class="intro-card">
+        <div class="intro-badge">⚛️ INTERACTIVE SIMULATION</div>
+        <h1 class="intro-title">Particle Accelerator<br>Simulator</h1>
+        <p class="intro-subtitle">A real-time physics simulation of a <strong>synchrotron ring</strong> — the same type of machine used at CERN.</p>
+
+        <div class="intro-features">
+            <div class="intro-feature">
+                <span class="intro-icon">🔄</span>
+                <div>
+                    <strong>40 protons</strong> orbit inside a magnetic ring at ~5% the speed of light
+                </div>
+            </div>
+            <div class="intro-feature">
+                <span class="intro-icon">⚡</span>
+                <div>
+                    An <strong>RF cavity</strong> (the yellow marker) accelerates them each revolution
+                </div>
+            </div>
+            <div class="intro-feature">
+                <span class="intro-icon">🧲</span>
+                <div>
+                    <strong>Magnetic field (Bz)</strong> bends their path into a circle via the Lorentz force
+                </div>
+            </div>
+            <div class="intro-feature">
+                <span class="intro-icon">📊</span>
+                <div>
+                    Watch <strong>energy, radius, and momentum</strong> evolve in real-time graphs
+                </div>
+            </div>
+        </div>
+
+        <div class="intro-controls-hint">
+            <span>🖱️ Drag to orbit</span>
+            <span>📜 Scroll to zoom</span>
+            <span>⌨️ Toggle physics with sidebar</span>
+        </div>
+
+        <button id="intro-start" class="intro-start-btn">▶ START SIMULATION</button>
+        <div class="intro-skip">Press SPACE or click to begin</div>
+    </div>
+</div>
+
+<div id="app">
+    <!-- ═══ 3D Viewport ═══ -->
+    <div id="viewport">
+        <div class="viewport-overlay">
+            <div class="title">Synchrotron Ring</div>
+            <div class="hint">Orbit: drag · Zoom: scroll · Pan: right-drag</div>
+        </div>
+
+        <!-- Live narration — dynamically explains what's happening -->
+        <div class="narration-bar" id="narration-bar">
+            <span class="narration-icon">📡</span>
+            <span class="narration-text" id="narration-text">Initializing beam...</span>
+        </div>
+
+        <!-- Viewport HUD — always-visible key stats -->
+        <div class="viewport-hud" id="viewport-hud">
+            <div class="hud-stat"><span class="hud-label">TURNS</span><span class="hud-value" id="hud-turns">0</span></div>
+            <div class="hud-stat"><span class="hud-label">ENERGY</span><span class="hud-value" id="hud-energy">0 eV</span></div>
+            <div class="hud-stat"><span class="hud-label">ALIVE</span><span class="hud-value" id="hud-alive">40/40</span></div>
+            <div class="hud-stat"><span class="hud-label">TIME</span><span class="hud-value" id="hud-time">0s</span></div>
+        </div>
+
+        <div class="paused-overlay" id="paused-overlay">
+            <div class="paused-text">⏸ PAUSED</div>
+        </div>
+    </div>
+
+    <!-- ═══ Side Panel ═══ -->
+    <div id="side-panel">
+
+        <!-- Header -->
+        <div class="panel-header">
+            <h1>Steins;Gate</h1>
+            <div class="subtitle">Synchrotron Simulator</div>
+            <div class="divergence-meter" id="divergence">1.048596</div>
+        </div>
+
+        <!-- What Am I Looking At? -->
+        <div class="section-header" id="about-toggle" style="cursor:pointer;">ℹ️ What is this? <span style="float:right;font-size:9px;opacity:0.5" id="about-arrow">▶</span></div>
+        <div class="about-section collapsed" id="about-section">
+            <p>This is a <strong>particle accelerator</strong> — a machine that uses electromagnetic fields to push charged particles to incredible speeds.</p>
+            <p>The <span style="color:#00ff41">green ring</span> is the <strong>beam pipe</strong> where 40 protons orbit. The <span style="color:#ffaa00">yellow structure</span> is the <strong>RF cavity</strong> — it gives particles an energy kick each lap.</p>
+            <p>The <span style="color:#ff4444">red dot</span> leads the beam. As particles gain energy, the magnetic field must increase to keep them on track — just like at CERN's Large Hadron Collider.</p>
+            <p class="about-try"><strong>Try it:</strong> Toggle "Focus" ON to keep the beam tight. Toggle "RF Kick" OFF to stop acceleration and watch the beam coast.</p>
+        </div>
+
+        <!-- Toggles -->
+        <div class="section-header">Physics Toggles</div>
+        <div class="toggles-grid">
+            <button class="toggle-btn on" id="toggle-rf" data-label="RF Kick" title="RF Cavity — accelerates particles each revolution">
+                <span class="toggle-label">RF Kick <span class="shortcut-hint">[G]</span></span>
+                <span class="toggle-status">ON</span>
+            </button>
+            <button class="toggle-btn on" id="toggle-focus" data-label="Focusing" title="Focusing field — keeps beam near the design orbit">
+                <span class="toggle-label">Focus <span class="shortcut-hint">[F]</span></span>
+                <span class="toggle-status">OFF</span>
+            </button>
+            <button class="toggle-btn on" id="toggle-rel" data-label="Relativity" title="Relativistic corrections — γ factor for speeds near c">
+                <span class="toggle-label">Relativ. <span class="shortcut-hint">[T]</span></span>
+                <span class="toggle-status">ON</span>
+            </button>
+            <button class="toggle-btn on" id="toggle-bramp" data-label="B-Ramp" title="B-field ramping — auto-adjusts magnetic field strength">
+                <span class="toggle-label">B-Ramp <span class="shortcut-hint">[B]</span></span>
+                <span class="toggle-status">ON</span>
+            </button>
+            <button class="toggle-btn on" id="toggle-trails" data-label="Trails">
+                <span class="toggle-label">Trails</span>
+                <span class="toggle-status">ON</span>
+            </button>
+            <button class="toggle-btn on" id="toggle-glow" data-label="Glow">
+                <span class="toggle-label">Glow</span>
+                <span class="toggle-status">ON</span>
+            </button>
+        </div>
+
+        <!-- Controls -->
+        <div class="section-header">Parameters</div>
+        <div class="steppers-list">
+            <div class="stepper-row">
+                <span class="stepper-label">Steps/frame</span>
+                <div class="stepper-controls">
+                    <button class="stepper-btn" id="steps-minus">−</button>
+                    <span class="stepper-value" id="steps-val">1200</span>
+                    <button class="stepper-btn" id="steps-plus">+</button>
+                </div>
+            </div>
+            <div class="stepper-row">
+                <span class="stepper-label">Bz Field</span>
+                <div class="stepper-controls">
+                    <button class="stepper-btn" id="bz-minus">−</button>
+                    <span class="stepper-value" id="bz-val">0.0313 T</span>
+                    <button class="stepper-btn" id="bz-plus">+</button>
+                </div>
+            </div>
+            <div class="stepper-row">
+                <span class="stepper-label">RF E₀</span>
+                <div class="stepper-controls">
+                    <button class="stepper-btn" id="e0-minus">−</button>
+                    <span class="stepper-value" id="e0-val">50 kV</span>
+                    <button class="stepper-btn" id="e0-plus">+</button>
+                </div>
+            </div>
+            <div class="stepper-row">
+                <span class="stepper-label">Focus K</span>
+                <div class="stepper-controls">
+                    <button class="stepper-btn" id="kf-minus">−</button>
+                    <span class="stepper-value" id="kf-val">50 MN</span>
+                    <button class="stepper-btn" id="kf-plus">+</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="section-header">Actions</div>
+        <div class="actions-row">
+            <button class="action-btn primary" id="btn-pause">⏸ PAUSE</button>
+            <button class="action-btn secondary" id="btn-reset">↺ RESET</button>
+            <button class="action-btn secondary" id="btn-respawn">⟳ RESPAWN</button>
+        </div>
+
+        <!-- Graphs -->
+        <div class="section-header">Live Diagnostics</div>
+        <div id="graphs-container"></div>
+
+        <!-- Stats -->
+        <div class="section-header">Telemetry</div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <span class="stat-label">Alive</span>
+                <span class="stat-value" id="stat-alive">40 / 40</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">FPS</span>
+                <span class="stat-value" id="stat-fps">60</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Bz</span>
+                <span class="stat-value" id="stat-bz">0.8000 T</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Radius</span>
+                <span class="stat-value" id="stat-radius">5.0000 m</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Energy</span>
+                <span class="stat-value" id="stat-energy">0.00 eV</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Sim Time</span>
+                <span class="stat-value" id="stat-time">0.000e+0 s</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Turns</span>
+                <span class="stat-value" id="stat-turns">0</span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="panel-footer">
+            <div class="worldline">EL PSY KONGROO</div>
+            <div class="credit">
+                Synchrotron Simulator · <a href="https://github.com/Gamerboyi/Steins_Gate" target="_blank">GitHub</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+
+</body>
+</html>
