@@ -1,287 +1,198 @@
-````md
-# ⚛️ Ring Particle Accelerator Simulator (Phase 10 Final)
+# ⚛️ Synchrotron Ring Accelerator Simulator
 
-A **real-time ring accelerator / synchrotron-style simulation** built in **Python + Pygame**, focused on both **physics accuracy** and **portfolio-grade visualization**.
+> *"The universe has a beginning, but no end. — Infinite."*  
+> — **Steins;Gate**, El Psy Kongroo
 
-This project simulates a beam of charged particles (protons) moving inside a circular accelerator ring, including:
+A **real-time particle accelerator simulation** featuring both a **Python/Pygame scientific simulator** and a **3D web-based interactive demo** (Three.js). Simulates a beam of charged particles (protons) orbiting inside a synchrotron ring with real electromagnetic physics.
 
-- **Lorentz force motion**
-- **Magnetic bending field (Bz)**
-- **RF gap acceleration**
-- **Focusing field**
-- **Relativistic energy + momentum**
-- **Multi-particle beam dynamics**
-- **Lap-based trail system**
-- **Mean graphs dashboard (Energy, Radius, Bz, Momentum)**
+![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white)
+![Three.js](https://img.shields.io/badge/Three.js-r163-black?logo=threedotjs)
+![Tests](https://img.shields.io/badge/Tests-15%20passing-brightgreen)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
 
-## 🎯 Why I Built This
+## 🌐 Live Web Demo
 
-Most accelerator simulations are either:
-- too theoretical (no visuals)
-- too visual (no real physics)
+**▶ [Try it in your browser](https://gamerboyi.github.io/Steins_Gate/)** — No installation needed!
 
-This project tries to combine both:
-✅ physics-based simulation  
-✅ smooth visualization  
-✅ real-time control toggles  
-  
+The web version features a 3D torus ring with orbiting particles, real-time physics graphs, and a Steins;Gate-inspired CRT/retro-futuristic interface.
 
 ---
 
-## 🧠 What This Project Simulates (Concept)
+## 🎯 What This Simulates
 
-### 1) Circular Motion in a Ring (Synchrotron)
-Particles travel in a circular path due to a **magnetic field**:
-
-- Magnetic field is applied in the **z-direction**: `Bz`
-- Motion is simulated in **2D (x-y plane)**
-
-The force is:
-\[
-\vec{F} = q(\vec{E} + \vec{v} \times \vec{B})
-\]
-
----
-
-### 2) RF Gap Acceleration (Energy Gain)
-A real accelerator does not accelerate particles everywhere.  
-Instead, it accelerates them only inside an **RF cavity gap**.
-
-So in this simulation:
-
-- The RF gap exists only at the **+x side**
-- Only if the particle is inside the gap region:
-  - `x > 0`
-  - `|y| < gap_halfwidth`
-
-Then we apply an electric field:
-
-\[
-E(t) = E_0 \sin(\omega t + \phi)
-\]
-
-This field is applied along the particle’s velocity direction (tangential kick).
+| Physics Feature | Implementation |
+|---|---|
+| **Lorentz force** | F = q(E + v × B) — magnetic bending + electric acceleration |
+| **RF cavity gap** | Sinusoidal E-field at +x gap — models real synchrotron acceleration |
+| **Radial focusing** | Restoring force toward design orbit — mimics quadrupole lattice |
+| **Relativistic dynamics** | γ = 1/√(1−v²/c²) — correct at all speeds |
+| **RK4 integration** | 4th-order Runge-Kutta — O(h⁴) accuracy for orbit stability |
+| **Beam dynamics** | 40 protons with Gaussian position/velocity spread |
+| **B-ramp stabilizer** | Automatic Bz adjustment — mimics real synchrotron ramping |
 
 ---
 
-### 3) Focusing Field (Beam Stability)
-Particles naturally drift outward/inward due to numerical noise and acceleration.
+## 🖥️ Two Versions
 
-To prevent beam loss, a **restoring radial focusing field** is applied:
+### 1. Web (Three.js 3D) — `web/`
+- **3D torus ring** with glowing wireframe and bloom effects
+- **Shader-based particles** with additive blending
+- **Orbital camera** — drag to rotate, scroll to zoom
+- **Glassmorphism control panel** — toggles, steppers, action buttons
+- **Real-time Canvas graphs** — Energy, Radius, Bz, Momentum
+- **CRT scanline overlay** — Steins;Gate retro-futuristic aesthetic
 
-- If particle radius differs from ring radius:
-  - it experiences a restoring force inward/outward
-
-This keeps the beam near the ring.
-
----
-
-### 4) Relativistic Energy + Momentum
-At high velocity, classical mechanics fails.
-
-So this simulation supports **relativistic dynamics**:
-
-\[
-\gamma = \frac{1}{\sqrt{1-v^2/c^2}}
-\]
-
-Relativistic momentum:
-
-\[
-p = \gamma m v
-\]
-
-Energy is tracked in eV.
+### 2. Desktop (Pygame) — `visualize.py`
+- Full 2D simulation with particle trails and glow effects
+- Interactive dashboard with live graphs
+- Keyboard + mouse controls
+- Screenshot capture
 
 ---
 
-### 5) Beam Simulation (Multiple Particles)
-Instead of simulating a single particle, the project simulates a **beam bunch**:
+## 🚀 Quick Start
 
-- 40 particles by default
-- Small Gaussian spread in:
-  - initial position
-  - initial velocity
-
-This helps visualize beam spread and stability.
-
----
-
-## 🌀 Trail System (Lap-Based)
-
-This project uses a **true lap trail system**:
-
-- **White trail** = current lap
-- **Green trail** = previous lap fading out
-
-Each time a particle completes one revolution:
-- its current trail becomes previous
-- previous begins fading out
-
-This gives a **hypnosis-like spiral feel** (lap-by-lap memory).
-
----
-
-## 📊 Dashboard (Right Panel Graphs)
-
-The simulation tracks and graphs these values live:
-
-### ✅ Mean Energy
-- plotted using log scale (so changes are visible)
-
-### ✅ Mean Radius
-- shows how stable the beam is around ring radius
-
-### ✅ Magnetic Field Bz
-- shows the B-ramp stabilizer effect
-
-### ✅ Mean Momentum |p|
-- shows energy growth + stability
-
----
-
-## 🧲 B-Ramp Stabilizer
-
-When enabled, the simulation automatically adjusts `Bz` to keep the beam near the ring radius:
-
-- If mean radius drifts outward → increase Bz  
-- If mean radius drifts inward → decrease Bz  
-
-This mimics real synchrotron ramping logic.
-
----
-
-## 🎮 Controls
-
-### Keyboard Controls
-| Key | Function |
-|-----|----------|
-| `SPACE` | Pause/Resume |
-| `R` | Reset Simulation |
-| `UP / DOWN` | Increase/Decrease Steps per Frame |
-| `+ / -` | Zoom In / Zoom Out |
-| `G` | Toggle RF Kick |
-| `F` | Toggle Focusing |
-| `T` | Toggle Relativity |
-| `B` | Toggle B-Ramp |
-
----
-
-## 🏗️ Project Structure
-
-### `visualize.py`
-Main Pygame simulation:
-- rendering
-- trails
-- glow
-- UI panels
-- graphs
-- input controls
-- simulation loop
-
-### `particle.py`
-Particle class:
-- stores state (x,y,vx,vy)
-- stores energy, gamma, momentum
-- updates derived physics values
-
-### `physics.py`
-Physics engine:
-- Lorentz acceleration
-- RF gap kick
-- focusing field
-- derivatives function for integrator
-
-### `integrators.py`
-Numerical integration:
-- RK4 integrator for stable smooth motion
-
-### `constants.py`
-Physical constants:
-- proton mass
-- proton charge
-- speed of light
-
----
-
-## ⚙️ Performance Notes
-
-This simulation uses:
-- RK4 integration (high accuracy)
-- many micro steps per frame
-
-So the simulation stays stable even at high speed.
-
----
-
-## 🚀 How to Run
-
-### 1) Install Dependencies
+### Web Version (recommended)
 ```bash
-pip install pygame numpy
-````
+# No installation needed — just serve the files
+cd web
+python -m http.server 8080
+# Open http://localhost:8080 in your browser
+```
 
-### 2) Run the Project
-
+### Python Version
 ```bash
+pip install -r requirements.txt
 python visualize.py
 ```
 
 ---
 
-## 📌 Key Learning Outcomes
+## 🧠 Physics Deep Dive
 
-This project helped me learn:
+### Circular Motion in a Synchrotron
+Particles travel in a circular path due to a magnetic field applied in the z-direction (Bz). The Lorentz force provides centripetal acceleration:
 
-* numerical integration (RK4)
-* Lorentz force physics
-* relativistic momentum/energy
-* RF phase acceleration
-* beam stability concepts
-* real-time simulation performance
-* visualization design for portfolios
+$$\vec{F} = q(\vec{E} + \vec{v} \times \vec{B})$$
 
----
+### RF Cavity Acceleration
+A real accelerator accelerates particles only inside a localized RF cavity, not everywhere. The cavity field:
 
-## 🌟 Future Improvements (Planned / Open Ideas)
+$$E(t) = E_0 \sin(\omega t + \phi)$$
 
-I am open to improvements and suggestions such as:
+is applied tangentially at the +x gap position. The field is fixed in the lab frame (not particle-relative), which is the physically correct behavior.
 
-* proper accelerator lattice (drift + quads)
-* quadrupole focusing instead of simple radial spring
-* real RF phase stability bucket
-* better beam injection and extraction
-* full 3D visualization (Unity / Godot / Panda3D / OpenGL)
-* GPU acceleration for larger beams (1000+ particles)
-* interactive UI sliders and clickable buttons
-* exporting graphs / simulation logs
+### Relativistic Corrections
 
----
+$$\gamma = \frac{1}{\sqrt{1 - v^2/c^2}}, \quad p = \gamma m v, \quad KE = (\gamma - 1)mc^2$$
 
-## 🤝 Suggestions / Feedback (Open to Improvements)
+### Numerical Integration
+RK4 with correct time sub-stepping for the RF cavity:
+- k1 evaluated at t
+- k2, k3 evaluated at t + dt/2
+- k4 evaluated at t + dt
 
-This project is my **Phase 10 Final** and I’m treating it as the final portfolio version.
-But I’m always open to:
-
-* suggestions from others
-* improvements in physics accuracy
-* UI/UX ideas (buttons, sliders, better graphs)
-* performance optimization
-* making the ring look more realistic / 3D
-* adding more real accelerator components (quadrupoles, drift spaces, lattice)
-
-If you have any feedback or want to collaborate, feel free to contact me:
-
-📩 **Email:** [itsvedantnautiyal@gmail.com](mailto:itsvedantnautiyal@gmail.com)
+This ensures the time-dependent RF field is sampled correctly across each integration step.
 
 ---
 
-## ⭐ If You Like This Project
-
-If you found this interesting, feel free to star the repo ⭐
-It motivates me to build more physics + simulation projects.
+## 🏗️ Architecture
 
 ```
+├── web/                    # 3D Web Simulation
+│   ├── index.html          # Entry point (import maps for Three.js CDN)
+│   ├── css/style.css       # Steins;Gate CRT theme
+│   └── js/
+│       ├── main.js         # Animation loop + beam management
+│       ├── renderer.js     # Three.js scene (torus, particles, bloom)
+│       ├── dashboard.js    # Canvas-based real-time graphs
+│       ├── controls.js     # UI ↔ simulation state binding
+│       ├── physics.js      # Lorentz, RF gap, focusing field
+│       ├── integrator.js   # RK4 integrator
+│       ├── particle.js     # Particle state class
+│       └── constants.js    # Physical constants (CODATA 2018)
+│
+├── visualize.py            # Pygame 2D simulation
+├── physics.py              # Physics engine (Python)
+├── particle.py             # Particle class (Python)
+├── integrators.py          # RK4 integrator (Python)
+├── constants.py            # Physical constants (Python)
+├── main.py                 # CLI simulation + matplotlib plots
+│
+├── tests/                  # 15 unit tests
+│   ├── test_orbit_radius.py    # Cyclotron radius vs theory
+│   ├── test_physics.py         # Gamma, RF, focusing, Lorentz
+│   └── test_particle.py        # Energy conservation, momentum
+│
+├── .github/workflows/test.yml  # CI: pytest on Python 3.10-3.13
+├── requirements.txt
+├── CHANGELOG.md
+└── LICENSE
 ```
+
+---
+
+## 🎮 Controls
+
+### Keyboard (both versions)
+| Key | Function |
+|-----|----------|
+| `SPACE` | Pause / Resume |
+| `R` | Reset simulation |
+| `G` | Toggle RF Kick |
+| `F` | Toggle Focusing |
+| `T` | Toggle Relativity |
+| `B` | Toggle B-Ramp |
+
+### Web Version
+- **Orbit**: Left-click drag
+- **Zoom**: Scroll wheel
+- **Pan**: Right-click drag
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all 15 tests
+pytest tests/ -v
+
+# Tests cover:
+# - Cyclotron radius matches r = mv/(qB)
+# - Lorentz factor γ = 1 at rest, γ >> 1 near c
+# - RF gap fires only at +x, respects halfwidth
+# - Focusing field restores toward ring radius
+# - Magnetic force perpendicular to velocity (no work done)
+# - Energy conservation in pure magnetic field
+# - Relativistic momentum p = γmv
+```
+
+---
+
+## 📌 Technical Highlights
+
+- **Correct RK4 implementation** — intermediate time evaluation for RF accuracy
+- **Physics validation** — 15 tests verify against analytical solutions
+- **Dual-platform** — Python for research, Web for interactive demonstration
+- **No build step** — web version uses ES modules + CDN import maps
+- **Responsive** — adapts from desktop to mobile layouts
+
+---
+
+## 📚 References
+
+- Wiedemann, H. *"Particle Accelerator Physics"* (Springer, 4th ed.)
+- Press et al. *"Numerical Recipes"* (Cambridge, 3rd ed.) — §17.1 RK4
+- CODATA 2018 — Physical constants (NIST)
+
+---
+
+## 📜 License
+
+MIT License — see [LICENSE](LICENSE)
+
+---
+
+*El Psy Kongroo.*
