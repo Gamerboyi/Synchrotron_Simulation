@@ -140,9 +140,12 @@ const aboutToggle = document.getElementById('about-toggle');
 const aboutSection = document.getElementById('about-section');
 const aboutArrow = document.getElementById('about-arrow');
 if (aboutToggle && aboutSection) {
+    // Start collapsed
+    aboutSection.style.display = 'none';
     aboutToggle.addEventListener('click', () => {
-        aboutSection.classList.toggle('collapsed');
-        if (aboutArrow) aboutArrow.textContent = aboutSection.classList.contains('collapsed') ? '▶' : '▼';
+        const isHidden = aboutSection.style.display === 'none';
+        aboutSection.style.display = isHidden ? 'block' : 'none';
+        if (aboutArrow) aboutArrow.textContent = isHidden ? '▼' : '▶';
     });
 }
 
