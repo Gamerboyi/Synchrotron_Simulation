@@ -14,7 +14,7 @@ A **real-time particle accelerator simulation** featuring both a **Python/Pygame
 
 ## 🌐 Live Web Demo
 
-**▶ [Try it in your browser](https://gamerboyi.github.io/Steins_Gate/)** — No installation needed!
+**▶ [Try it in your browser](https://synchrotron-simulation.vercel.app/)** — No installation needed!
 
 The web version features a 3D torus ring with orbiting particles, real-time physics graphs, and a Steins;Gate-inspired CRT/retro-futuristic interface.
 
